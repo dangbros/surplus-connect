@@ -18,6 +18,8 @@ export interface VolunteerTask {
             weight_kg: number
             pickup_instructions: string
             image_url: string | null
+            latitude?: number | null
+            longitude?: number | null
             donor?: {
                 organization_name: string
             }
@@ -29,7 +31,6 @@ export async function getOpenTasks(): Promise<VolunteerTask[]> {
     const supabase = await createClient()
 
     // Fetch tasks with nested claims, ngo, and donations
-    // Note: claims.ngo_id references profiles. claims.donation_id references donations.
     const { data: tasks, error } = await supabase
         .from('tasks')
         .select(`
@@ -59,8 +60,6 @@ export async function getOpenTasks(): Promise<VolunteerTask[]> {
 
     if (!tasks || tasks.length === 0) return []
 
-    // Manually fetch donor profiles because donations.donor_id doesn't explicitly reference profiles in schema
-    // (It references auth.users, but profiles shares the ID)
     const donorIds = [
         ...new Set(
             tasks

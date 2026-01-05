@@ -1,5 +1,6 @@
 import { getOpenTasks } from '@/actions/volunteer'
 import { TaskCard } from '@/components/dashboard/task-card'
+import { VolunteerMap } from '@/components/dashboard/volunteer-map'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Info } from 'lucide-react'
 
@@ -16,6 +17,10 @@ export default async function VolunteerDashboardPage() {
                     View and accept delivery tasks to help move food from donors to NGOs.
                 </p>
             </div>
+
+            {tasks.length > 0 && (
+                <VolunteerMap tasks={tasks} />
+            )}
 
             {tasks.length === 0 ? (
                 <Alert>
