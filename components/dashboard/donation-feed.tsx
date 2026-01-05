@@ -57,9 +57,27 @@ export function DonationFeed({ initialDonations }: DonationFeedProps) {
         }
     }, [supabase])
 
-    const handleClaim = (id: string) => {
-        console.log('Claiming donation:', id)
-        toast.success('Claim logic would go here')
+    const [claimingId, setClaimingId] = useState<string | null>(null)
+
+    const handleClaim = async (id: string) => {
+        setClaimingId(id)
+        try {
+            const { claimDonation } = await import('@/actions/logistics')
+            const result = await claimDonation(id)
+
+            if (result.success) {
+                toast.success('Donation claimed! Volunteer task created.')
+                // Optimistically remove from list
+                setDonations(prev => prev.filter(d => d.id !== id))
+            } else {
+                toast.error(result.error || 'Failed to claim donation')
+            }
+        } catch (error) {
+            toast.error('An unexpected error occurred')
+            console.error(error)
+        } finally {
+            setClaimingId(null)
+        }
     }
 
     const handleImageError = (id: string) => {
@@ -106,8 +124,12 @@ export function DonationFeed({ initialDonations }: DonationFeedProps) {
                         <p className="text-sm line-clamp-2">{donation.pickup_instructions}</p>
                     </CardContent>
                     <CardFooter>
-                        <Button onClick={() => handleClaim(donation.id)} className="w-full">
-                            Claim Donation
+                        <Button
+                            onClick={() => handleClaim(donation.id)}
+                            className="w-full"
+                            disabled={claimingId === donation.id}
+                        >
+                            {claimingId === donation.id ? 'Claiming...' : 'Claim Donation'}
                         </Button>
                     </CardFooter>
                 </Card>
