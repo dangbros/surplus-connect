@@ -8,6 +8,9 @@ const donationSchema = z.object({
     weight_kg: z.coerce.number().positive(),
     expiry_hours: z.coerce.number().positive(),
     pickup_instructions: z.string().min(1, 'Pickup instructions are required'),
+    pickup_address: z.string().optional(), // New field
+    freshness_score: z.coerce.number().optional(), // New field
+    ai_notes: z.string().optional(), // New field
     image: z.instanceof(File).refine((file) => file.size > 0, 'Image is required'),
 })
 
@@ -20,6 +23,9 @@ export async function submitDonation(prevState: any, formData: FormData) {
         weight_kg: formData.get('weight_kg'),
         expiry_hours: formData.get('expiry_hours'),
         pickup_instructions: formData.get('pickup_instructions'),
+        pickup_address: formData.get('pickup_address') || undefined, // Handle null
+        freshness_score: formData.get('freshness_score') || undefined, // Handle null/empty
+        ai_notes: formData.get('ai_notes') || undefined, // Handle null/empty
         image: formData.get('image'),
     })
 
@@ -30,8 +36,16 @@ export async function submitDonation(prevState: any, formData: FormData) {
         }
     }
 
-    const { food_category, weight_kg, expiry_hours, pickup_instructions, image } =
-        validatedFields.data
+    const {
+        food_category,
+        weight_kg,
+        expiry_hours,
+        pickup_instructions,
+        pickup_address,
+        freshness_score,
+        ai_notes,
+        image
+    } = validatedFields.data
 
     try {
         // Get current user
@@ -71,6 +85,9 @@ export async function submitDonation(prevState: any, formData: FormData) {
             food_category,
             weight_kg,
             pickup_instructions,
+            pickup_address, // Save new field
+            freshness_score, // Save new field
+            ai_notes, // Save new field
             expiry_at: expiryDate.toISOString(),
             image_url: publicUrl,
             status: 'AVAILABLE',

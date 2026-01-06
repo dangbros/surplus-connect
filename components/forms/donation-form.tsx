@@ -26,6 +26,7 @@ const formSchema = z.object({
     weight_kg: z.coerce.number().positive('Weight must be positive'),
     expiry_hours: z.coerce.number().positive('Expiry hours must be positive'),
     pickup_instructions: z.string().min(1, 'Pickup instructions are required'),
+    pickup_address: z.string().min(1, 'Pickup address is required'),
 })
 
 type FormDataValues = z.infer<typeof formSchema>
@@ -109,6 +110,7 @@ export function DonationForm() {
         formData.append('weight_kg', data.weight_kg.toString())
         formData.append('expiry_hours', data.expiry_hours.toString())
         formData.append('pickup_instructions', data.pickup_instructions)
+        formData.append('pickup_address', data.pickup_address)
         formData.append('image', file)
 
         try {
@@ -233,6 +235,20 @@ export function DonationForm() {
                 {errors.pickup_instructions && (
                     <p className="text-sm text-red-500">
                         {errors.pickup_instructions.message}
+                    </p>
+                )}
+            </div>
+
+            <div className="space-y-2">
+                <Label htmlFor="pickup_address">Pickup Address</Label>
+                <Input
+                    id="pickup_address"
+                    placeholder="123 Main St, New York, NY"
+                    {...register('pickup_address')}
+                />
+                {errors.pickup_address && (
+                    <p className="text-sm text-red-500">
+                        {errors.pickup_address.message}
                     </p>
                 )}
             </div>

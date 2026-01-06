@@ -1,22 +1,28 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import Image from 'next/image'
-import { createClient } from '@/lib/supabase/client'
-import { Button } from '@/components/ui/button'
+import { useState } from 'react'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
+import { Calendar, Clock, MapPin, ShieldCheck, Weight } from 'lucide-react'
+import { claimDonation } from '@/actions/logistics'
 import { toast } from 'sonner'
+import Image from 'next/image'
 
 interface Donation {
     id: string
-    created_at: string
     food_category: string
     weight_kg: number
-    pickup_instructions: string
     expiry_at: string
     image_url: string
-    status: string
-    donor_id: string
+    pickup_instructions: string
+    // New fields
+    freshness_score?: number | null
+    ai_notes?: string | null
+    pickup_address?: string | null
+    donor_id?: string
+    status?: string
 }
 
 interface DonationFeedProps {
@@ -25,120 +31,183 @@ interface DonationFeedProps {
 
 export function DonationFeed({ initialDonations }: DonationFeedProps) {
     const [donations, setDonations] = useState<Donation[]>(initialDonations)
-    const [failedImages, setFailedImages] = useState<Set<string>>(new Set())
-    const supabase = createClient()
+    const [loadingId, setLoadingId] = useState<string | null>(null)
 
-    useEffect(() => {
-        setDonations(initialDonations)
-    }, [initialDonations])
-
-    useEffect(() => {
-        const channel = supabase
-            .channel('realtime donations')
-            .on(
-                'postgres_changes',
-                {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'donations',
-                    filter: 'status=eq.AVAILABLE',
-                },
-                (payload) => {
-                    console.log('New donation received:', payload)
-                    const newDonation = payload.new as Donation
-                    setDonations((prev) => [newDonation, ...prev])
-                    toast.info('New donation available!')
-                }
-            )
-            .subscribe()
-
-        return () => {
-            supabase.removeChannel(channel)
-        }
-    }, [supabase])
-
-    const [claimingId, setClaimingId] = useState<string | null>(null)
-
-    const handleClaim = async (id: string) => {
-        setClaimingId(id)
+    async function handleClaim(id: string) {
+        setLoadingId(id)
         try {
-            const { claimDonation } = await import('@/actions/logistics')
             const result = await claimDonation(id)
-
             if (result.success) {
-                toast.success('Donation claimed! Volunteer task created.')
-                // Optimistically remove from list
-                setDonations(prev => prev.filter(d => d.id !== id))
+                toast.success('Donation claimed successfully!')
+                setDonations((prev) => prev.filter((d) => d.id !== id))
             } else {
                 toast.error(result.error || 'Failed to claim donation')
             }
         } catch (error) {
+            console.error('Claim error:', error)
             toast.error('An unexpected error occurred')
-            console.error(error)
         } finally {
-            setClaimingId(null)
+            setLoadingId(null)
         }
     }
 
-    const handleImageError = (id: string) => {
-        setFailedImages((prev) => {
-            const newSet = new Set(prev)
-            newSet.add(id)
-            return newSet
-        })
+    if (donations.length === 0) {
+        return (
+            <div className="text-center py-10">
+                <p className="text-muted-foreground">No donations available at the moment.</p>
+            </div>
+        )
     }
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {donations.map((donation) => (
-                <Card key={donation.id} className="overflow-hidden">
-                    <div className="relative h-48 w-full bg-gray-100 flex items-center justify-center">
-                        {!failedImages.has(donation.id) ? (
+                <Card key={donation.id} className="overflow-hidden flex flex-col hover:shadow-md transition-shadow">
+                    <div className="relative h-48 w-full bg-gray-100">
+                        {donation.image_url ? (
                             <Image
                                 src={donation.image_url}
                                 alt={donation.food_category}
                                 fill
                                 className="object-cover"
-                                onError={() => handleImageError(donation.id)}
-                                unoptimized={true} // Skip optimization to prevent server errors on bad URLs
                             />
                         ) : (
-                            <div className="text-gray-400 flex flex-col items-center">
-                                <span className="text-2xl mb-1">📷</span>
-                                <span className="text-xs">Image unavailable</span>
+                            <div className="flex items-center justify-center h-full text-muted-foreground">
+                                No Image
                             </div>
                         )}
+                        <div className="absolute top-2 right-2 flex flex-col gap-2">
+                            <Badge className="bg-white/90 text-black hover:bg-white/90 shadow-sm backdrop-blur-sm">
+                                {donation.food_category}
+                            </Badge>
+                            {donation.freshness_score && (
+                                <Badge className="bg-green-100/90 text-green-700 hover:bg-green-100/90 shadow-sm backdrop-blur-sm flex items-center gap-1">
+                                    <ShieldCheck className="w-3 h-3" />
+                                    AI Score: {donation.freshness_score}/10
+                                </Badge>
+                            )}
+                        </div>
                     </div>
-                    <CardHeader>
-                        <CardTitle className="flex justify-between items-center">
-                            <span>{donation.food_category}</span>
-                            <span className="text-sm font-normal text-muted-foreground">
-                                {donation.weight_kg} kg
-                            </span>
-                        </CardTitle>
+
+                    <CardHeader className="p-4 pb-2">
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                                    {donation.weight_kg}kg {donation.food_category}
+                                </CardTitle>
+                                <div className="flex items-center text-sm text-muted-foreground mt-1">
+                                    <Clock className="w-3 h-3 mr-1" />
+                                    Expires: {new Date(donation.expiry_at).toLocaleDateString()}
+                                </div>
+                            </div>
+                        </div>
                     </CardHeader>
-                    <CardContent>
-                        <p className="text-sm text-gray-500 mb-2">
-                            Expires: {new Date(donation.expiry_at).toLocaleString()}
-                        </p>
-                        <p className="text-sm line-clamp-2">{donation.pickup_instructions}</p>
+
+                    <CardContent className="p-4 pt-2 flex-grow">
+                        {donation.ai_notes ? (
+                            <p className="text-sm text-gray-600 line-clamp-2 italic">
+                                "{donation.ai_notes}"
+                            </p>
+                        ) : (
+                            <p className="text-sm text-gray-500">No additional AI notes.</p>
+                        )}
                     </CardContent>
-                    <CardFooter>
+
+                    <CardFooter className="p-4 bg-gray-50/50 flex gap-2">
+                        {/* View Details Dialog */}
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <Button variant="outline" className="flex-1">
+                                    View Details
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+                                <DialogHeader>
+                                    <DialogTitle className="text-2xl flex items-center gap-2">
+                                        {donation.food_category} • {donation.weight_kg}kg
+                                    </DialogTitle>
+                                    <DialogDescription>
+                                        Posted on {new Date().toLocaleDateString()} {/* Assuming posted recently, typically created_at */}
+                                    </DialogDescription>
+                                </DialogHeader>
+
+                                <div className="relative h-64 w-full rounded-lg overflow-hidden bg-gray-100 my-4">
+                                    {donation.image_url && (
+                                        <Image
+                                            src={donation.image_url}
+                                            alt={donation.food_category}
+                                            fill
+                                            className="object-cover"
+                                        />
+                                    )}
+                                </div>
+
+                                <div className="space-y-6">
+                                    {/* AI Report Section */}
+                                    <div className="bg-green-50/50 p-4 rounded-lg border border-green-100">
+                                        <h3 className="font-semibold text-green-800 flex items-center gap-2 mb-2">
+                                            <ShieldCheck className="w-5 h-5" /> Gemini AI Analysis
+                                        </h3>
+                                        <div className="flex items-center gap-4 mb-3">
+                                            <div className="flex flex-col">
+                                                <span className="text-xs text-muted-foreground uppercase font-bold">Freshness Score</span>
+                                                <span className="text-2xl font-bold text-green-700">{donation.freshness_score || 'N/A'}/10</span>
+                                            </div>
+                                            <div className="h-8 w-px bg-green-200"></div>
+                                            <div className="flex flex-col">
+                                                <span className="text-xs text-muted-foreground uppercase font-bold">Category</span>
+                                                <span className="font-medium">{donation.food_category}</span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <span className="text-xs text-muted-foreground uppercase font-bold">AI Reasoning</span>
+                                            <p className="text-gray-700 italic">
+                                                "{donation.ai_notes || 'No specific notes available for this item.'}"
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Logistics Section */}
+                                    <div>
+                                        <h3 className="font-semibold mb-2 flex items-center gap-2">
+                                            <MapPin className="w-5 h-5 text-blue-600" /> Logistics
+                                        </h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="bg-gray-50 p-3 rounded-md">
+                                                <p className="text-xs text-muted-foreground font-bold uppercase mb-1">Pickup Address</p>
+                                                <p className="text-sm text-gray-800">{donation.pickup_address || 'Address provided after claim'}</p>
+                                            </div>
+                                            <div className="bg-gray-50 p-3 rounded-md">
+                                                <p className="text-xs text-muted-foreground font-bold uppercase mb-1">Expiration</p>
+                                                <p className="text-sm text-gray-800">{new Date(donation.expiry_at).toLocaleString()}</p>
+                                            </div>
+                                        </div>
+                                        <div className="mt-4 bg-gray-50 p-3 rounded-md">
+                                            <p className="text-xs text-muted-foreground font-bold uppercase mb-1">Instructions</p>
+                                            <p className="text-sm text-gray-800">{donation.pickup_instructions}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <DialogFooter className="mt-6 gap-2 sm:gap-0">
+                                    <Button onClick={() => handleClaim(donation.id)} disabled={loadingId === donation.id} className="w-full sm:w-auto bg-green-600 hover:bg-green-700">
+                                        {loadingId === donation.id ? 'Claiming...' : 'Claim This Donation'}
+                                    </Button>
+                                </DialogFooter>
+
+                            </DialogContent>
+                        </Dialog>
+
                         <Button
+                            className="flex-1 bg-green-600 hover:bg-green-700"
                             onClick={() => handleClaim(donation.id)}
-                            className="w-full"
-                            disabled={claimingId === donation.id}
+                            disabled={loadingId === donation.id}
                         >
-                            {claimingId === donation.id ? 'Claiming...' : 'Claim Donation'}
+                            {loadingId === donation.id ? '...' : 'Claim'}
                         </Button>
                     </CardFooter>
                 </Card>
             ))}
-            {donations.length === 0 && (
-                <p className="col-span-full text-center text-gray-500 py-10">
-                    No donations available at the moment.
-                </p>
-            )}
         </div>
     )
 }
