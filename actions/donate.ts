@@ -8,9 +8,10 @@ const donationSchema = z.object({
     weight_kg: z.coerce.number().positive(),
     expiry_hours: z.coerce.number().positive(),
     pickup_instructions: z.string().min(1, 'Pickup instructions are required'),
-    pickup_address: z.string().optional(), // New field
-    freshness_score: z.coerce.number().optional(), // New field
-    ai_notes: z.string().optional(), // New field
+    pickup_address: z.string().optional(),
+    freshness_score: z.coerce.number().optional(),
+    ai_notes: z.string().optional(),
+    can_deliver: z.boolean().optional(),
     image: z.instanceof(File).refine((file) => file.size > 0, 'Image is required'),
 })
 
@@ -49,9 +50,10 @@ export async function submitDonation(prevState: any, formData: FormData) {
         weight_kg: formData.get('weight_kg'),
         expiry_hours: formData.get('expiry_hours'),
         pickup_instructions: formData.get('pickup_instructions'),
-        pickup_address: formData.get('pickup_address') || undefined, // Handle null
-        freshness_score: formData.get('freshness_score') || undefined, // Handle null/empty
-        ai_notes: formData.get('ai_notes') || undefined, // Handle null/empty
+        pickup_address: formData.get('pickup_address') || undefined,
+        freshness_score: formData.get('freshness_score') || undefined,
+        ai_notes: formData.get('ai_notes') || undefined,
+        can_deliver: formData.get('can_deliver') === 'true', // Transform string to boolean
         image: formData.get('image'),
     })
 
@@ -70,6 +72,7 @@ export async function submitDonation(prevState: any, formData: FormData) {
         pickup_address,
         freshness_score,
         ai_notes,
+        can_deliver,
         image
     } = validatedFields.data
 
@@ -130,15 +133,16 @@ export async function submitDonation(prevState: any, formData: FormData) {
             food_category,
             weight_kg,
             pickup_instructions,
-            pickup_address, // Save new field
-            freshness_score, // Save new field
-            ai_notes, // Save new field
-            latitude, // Save geocoded lat
-            longitude, // Save geocoded lon
+            pickup_address,
+            freshness_score,
+            ai_notes,
+            can_deliver: can_deliver || false,
+            latitude,
+            longitude,
             expiry_at: expiryDate.toISOString(),
             image_url: publicUrl,
             status: 'AVAILABLE',
-            is_verified: !!freshness_score, // Mark verified if score exists
+            is_verified: !!freshness_score,
         })
 
         if (insertError) {

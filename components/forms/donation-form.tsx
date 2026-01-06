@@ -34,6 +34,7 @@ const formSchema = z.object({
     expiry_hours: z.coerce.number().positive('Expiry hours must be positive'),
     pickup_instructions: z.string().min(1, 'Pickup instructions are required'),
     pickup_address: z.string().min(1, 'Pickup address is required'),
+    can_deliver: z.boolean().optional(),
 })
 
 type FormDataValues = z.infer<typeof formSchema>
@@ -122,6 +123,10 @@ export function DonationForm() {
         formData.append('pickup_instructions', data.pickup_instructions)
         formData.append('pickup_address', data.pickup_address)
         formData.append('image', file)
+
+        if (data.can_deliver) {
+            formData.append('can_deliver', 'true')
+        }
 
         // Add coordinates if available
         if (coordinates) {
@@ -275,6 +280,18 @@ export function DonationForm() {
                         {errors.pickup_address.message}
                     </p>
                 )}
+            </div>
+
+            <div className="flex items-center space-x-2">
+                <input
+                    type="checkbox"
+                    id="can_deliver"
+                    {...register('can_deliver')}
+                    className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                />
+                <Label htmlFor="can_deliver" className="font-medium cursor-pointer">
+                    I can deliver this item personally if needed 🚗
+                </Label>
             </div>
 
             {/* Hidden fields to pass AI data to Server Action */}

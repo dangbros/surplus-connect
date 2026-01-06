@@ -23,6 +23,7 @@ interface Donation {
     pickup_address?: string | null
     donor_id?: string
     status?: string
+    can_deliver?: boolean
 }
 
 interface DonationFeedProps {
@@ -33,12 +34,18 @@ export function DonationFeed({ initialDonations }: DonationFeedProps) {
     const [donations, setDonations] = useState<Donation[]>(initialDonations)
     const [loadingId, setLoadingId] = useState<string | null>(null)
 
+    const [selectedMethod, setSelectedMethod] = useState<'PICKUP' | 'VOLUNTEER' | 'DONOR_DELIVERY'>('VOLUNTEER')
+
     async function handleClaim(id: string) {
         setLoadingId(id)
         try {
-            const result = await claimDonation(id)
+            const result = await claimDonation(id, selectedMethod)
             if (result.success) {
-                toast.success('Donation claimed successfully!')
+                if (selectedMethod === 'VOLUNTEER') {
+                    toast.success('Task posted for volunteers! 🚚')
+                } else {
+                    toast.success('Claimed! Address saved to your profile. ✅')
+                }
                 setDonations((prev) => prev.filter((d) => d.id !== id))
             } else {
                 toast.error(result.error || 'Failed to claim donation')
@@ -117,8 +124,8 @@ export function DonationFeed({ initialDonations }: DonationFeedProps) {
                         {/* View Details Dialog */}
                         <Dialog>
                             <DialogTrigger asChild>
-                                <Button variant="outline" className="flex-1">
-                                    View Details
+                                <Button className="w-full bg-green-600 hover:bg-green-700">
+                                    Review & Claim
                                 </Button>
                             </DialogTrigger>
                             <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
@@ -127,7 +134,7 @@ export function DonationFeed({ initialDonations }: DonationFeedProps) {
                                         {donation.food_category} • {donation.weight_kg}kg
                                     </DialogTitle>
                                     <DialogDescription>
-                                        Posted on {new Date().toLocaleDateString()} {/* Assuming posted recently, typically created_at */}
+                                        Posted on {new Date().toLocaleDateString()}
                                     </DialogDescription>
                                 </DialogHeader>
 
@@ -167,44 +174,57 @@ export function DonationFeed({ initialDonations }: DonationFeedProps) {
                                         </div>
                                     </div>
 
-                                    {/* Logistics Section */}
+                                    {/* Logistics Selection Section */}
                                     <div>
-                                        <h3 className="font-semibold mb-2 flex items-center gap-2">
-                                            <MapPin className="w-5 h-5 text-blue-600" /> Logistics
+                                        <h3 className="font-semibold mb-3 flex items-center gap-2">
+                                            <MapPin className="w-5 h-5 text-blue-600" /> Fulfillment Method
                                         </h3>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div className="bg-gray-50 p-3 rounded-md">
-                                                <p className="text-xs text-muted-foreground font-bold uppercase mb-1">Pickup Address</p>
-                                                <p className="text-sm text-gray-800">{donation.pickup_address || 'Address provided after claim'}</p>
-                                            </div>
-                                            <div className="bg-gray-50 p-3 rounded-md">
-                                                <p className="text-xs text-muted-foreground font-bold uppercase mb-1">Expiration</p>
-                                                <p className="text-sm text-gray-800">{new Date(donation.expiry_at).toLocaleString()}</p>
-                                            </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                            <button
+                                                onClick={() => setSelectedMethod('PICKUP')}
+                                                className={`p-3 rounded-lg border text-left transition-all hover:bg-blue-50 ${selectedMethod === 'PICKUP' ? 'ring-2 ring-blue-600 bg-blue-50 border-blue-600' : 'bg-white border-gray-200'}`}
+                                            >
+                                                <span className="block text-xl mb-1">🙋</span>
+                                                <span className="block font-semibold text-sm">Self Pickup</span>
+                                                <span className="block text-xs text-muted-foreground">I will collect it</span>
+                                            </button>
+
+                                            <button
+                                                onClick={() => setSelectedMethod('VOLUNTEER')}
+                                                className={`p-3 rounded-lg border text-left transition-all hover:bg-blue-50 ${selectedMethod === 'VOLUNTEER' ? 'ring-2 ring-blue-600 bg-blue-50 border-blue-600' : 'bg-white border-gray-200'}`}
+                                            >
+                                                <span className="block text-xl mb-1">🚚</span>
+                                                <span className="block font-semibold text-sm">Volunteer</span>
+                                                <span className="block text-xs text-muted-foreground">Request help</span>
+                                            </button>
+
+                                            <button
+                                                onClick={() => setSelectedMethod('DONOR_DELIVERY')}
+                                                className={`p-3 rounded-lg border text-left transition-all hover:bg-blue-50 ${selectedMethod === 'DONOR_DELIVERY' ? 'ring-2 ring-blue-600 bg-blue-50 border-blue-600' : 'bg-white border-gray-200'}`}
+                                            >
+                                                <span className="block text-xl mb-1">📦</span>
+                                                <span className="block font-semibold text-sm">Donor Drop-off</span>
+                                                <span className="block text-xs text-muted-foreground">Donor delivers</span>
+                                            </button>
                                         </div>
-                                        <div className="mt-4 bg-gray-50 p-3 rounded-md">
-                                            <p className="text-xs text-muted-foreground font-bold uppercase mb-1">Instructions</p>
-                                            <p className="text-sm text-gray-800">{donation.pickup_instructions}</p>
+
+                                        <div className="mt-4 p-3 bg-gray-50 rounded-md text-sm border">
+                                            <p className="font-medium text-gray-700 mb-1">Pickup Information:</p>
+                                            <p className="text-gray-600">{donation.pickup_instructions}</p>
+                                            {donation.pickup_address && <p className="text-gray-600 mt-1 max-w-full truncate">{donation.pickup_address}</p>}
                                         </div>
                                     </div>
                                 </div>
 
                                 <DialogFooter className="mt-6 gap-2 sm:gap-0">
-                                    <Button onClick={() => handleClaim(donation.id)} disabled={loadingId === donation.id} className="w-full sm:w-auto bg-green-600 hover:bg-green-700">
-                                        {loadingId === donation.id ? 'Claiming...' : 'Claim This Donation'}
+                                    <Button onClick={() => handleClaim(donation.id)} disabled={loadingId === donation.id} className="w-full bg-green-600 hover:bg-green-700 h-11 text-base">
+                                        {loadingId === donation.id ? 'Processing...' : `Confirm: ${selectedMethod === 'VOLUNTEER' ? 'Request Volunteer' : selectedMethod === 'PICKUP' ? 'I Will Pickup' : 'Request Drop-off'}`}
                                     </Button>
                                 </DialogFooter>
 
                             </DialogContent>
                         </Dialog>
-
-                        <Button
-                            className="flex-1 bg-green-600 hover:bg-green-700"
-                            onClick={() => handleClaim(donation.id)}
-                            disabled={loadingId === donation.id}
-                        >
-                            {loadingId === donation.id ? '...' : 'Claim'}
-                        </Button>
                     </CardFooter>
                 </Card>
             ))}
