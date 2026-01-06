@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,11 +22,19 @@ import { submitDonation } from '@/actions/donate'
 import { analyzeFoodImage } from '@/actions/ai-check'
 import { Loader2 } from 'lucide-react'
 
+// Dynamically import OSMPicker with no SSR
+const OSMPicker = dynamic(() => import('@/components/ui/osm-picker'), {
+    ssr: false,
+    loading: () => <div className="h-[300px] w-full bg-muted animate-pulse rounded-md" />
+})
+
 const formSchema = z.object({
     food_category: z.enum(['Cooked', 'Raw', 'Packaged']),
     weight_kg: z.coerce.number().positive('Weight must be positive'),
     expiry_hours: z.coerce.number().positive('Expiry hours must be positive'),
     pickup_instructions: z.string().min(1, 'Pickup instructions are required'),
+    pickup_address: z.string().min(1, 'Pickup address is required'),
+    can_deliver: z.boolean().optional(),
 })
 
 type FormDataValues = z.infer<typeof formSchema>
@@ -33,7 +42,7 @@ type FormDataValues = z.infer<typeof formSchema>
 interface AIResult {
     is_safe: boolean
     freshness_score: number
-    detected_category: 'Cooked' | 'Raw' | 'Packaged'
+    detected_category: 'Cooked' | 'Raw' | 'Packaged' | 'Unknown'
     reasoning: string
 }
 
@@ -41,6 +50,9 @@ export function DonationForm() {
     const [loading, setLoading] = useState(false)
     const [isAnalyzing, setIsAnalyzing] = useState(false)
     const [aiResult, setAiResult] = useState<AIResult | null>(null)
+
+    // Explicit state for coordinates
+    const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(null)
 
     const {
         register,
@@ -109,7 +121,22 @@ export function DonationForm() {
         formData.append('weight_kg', data.weight_kg.toString())
         formData.append('expiry_hours', data.expiry_hours.toString())
         formData.append('pickup_instructions', data.pickup_instructions)
+        formData.append('pickup_address', data.pickup_address)
         formData.append('image', file)
+
+        if (data.can_deliver) {
+            formData.append('can_deliver', 'true')
+        }
+
+        // Add coordinates if available
+        if (coordinates) {
+            formData.append('latitude', coordinates.lat.toString())
+            formData.append('longitude', coordinates.lng.toString())
+        }
+
+        // Add hidden AI fields
+        formData.append('freshness_score', aiResult?.freshness_score?.toString() || '')
+        formData.append('ai_notes', aiResult?.reasoning || '')
 
         try {
             const result = await submitDonation(null, formData)
@@ -119,6 +146,7 @@ export function DonationForm() {
             } else {
                 toast.success('Donation submitted successfully!')
                 reset()
+                setCoordinates(null) // Reset coords
                 setAiResult(null)
                 if (fileInput) fileInput.value = ''
             }
@@ -237,9 +265,47 @@ export function DonationForm() {
                 )}
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
+            <div className="space-y-2">
+                <Label>Pickup Location</Label>
+                <OSMPicker
+                    onLocationSelect={(loc) => {
+                        setCoordinates({ lat: loc.lat, lng: loc.lng })
+                        setValue('pickup_address', loc.address)
+                    }}
+                />
+                {/* Hidden input to satisfy Zod validation on 'pickup_address' if needed, though OSMPicker updates it via setValue */}
+                <input type="hidden" {...register('pickup_address')} />
+                {errors.pickup_address && (
+                    <p className="text-sm text-red-500">
+                        {errors.pickup_address.message}
+                    </p>
+                )}
+            </div>
+
+            <div className="flex items-center space-x-2">
+                <input
+                    type="checkbox"
+                    id="can_deliver"
+                    {...register('can_deliver')}
+                    className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                />
+                <Label htmlFor="can_deliver" className="font-medium cursor-pointer">
+                    I can deliver this item personally if needed 🚗
+                </Label>
+            </div>
+
+            {/* Hidden fields to pass AI data to Server Action */}
+            <input type="hidden" name="freshness_score" value={aiResult?.freshness_score || ''} />
+            <input type="hidden" name="ai_notes" value={aiResult?.reasoning || ''} />
+
+            <Button type="submit" className="w-full" disabled={loading || (!!aiResult && !aiResult.is_safe)}>
                 {loading ? 'Submitting...' : 'Submit Donation'}
             </Button>
+            {!aiResult?.is_safe && aiResult && (
+                <p className="text-center text-xs text-red-600 mt-2">
+                    ⚠️ You cannot submit until the AI verifies the food is safe.
+                </p>
+            )}
         </form>
     )
 }

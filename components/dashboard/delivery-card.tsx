@@ -1,13 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { VolunteerTask, markAsDelivered } from '@/actions/volunteer'
+import { VolunteerTask, completeDelivery } from '@/actions/volunteer'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { MapPin, Navigation, CheckCircle, Loader2, Package } from 'lucide-react'
 import { toast } from 'sonner'
 import Image from 'next/image'
+import confetti from 'canvas-confetti'
 
 interface DeliveryCardProps {
     task: VolunteerTask
@@ -20,10 +21,25 @@ export function DeliveryCard({ task }: DeliveryCardProps) {
     const handleComplete = async () => {
         setLoading(true)
         try {
+<<<<<<< HEAD
             const result = await markAsDelivered(task.id)
             if (result.error) toast.error(result.error)
             else toast.success('Delivery completed! Great job!')
         } catch {
+=======
+            const result = await completeDelivery(task.id)
+            if (result.error) {
+                toast.error(result.error)
+            } else {
+                confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                })
+                toast.success(`Delivery completed! Points +${result.pointsEarned || 50}`)
+            }
+        } catch (error) {
+>>>>>>> 7a9184b89247297dfaa85d714b8d01b040610386
             toast.error('Failed to update status')
         } finally {
             setLoading(false)

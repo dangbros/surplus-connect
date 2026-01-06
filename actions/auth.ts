@@ -73,6 +73,11 @@ export async function getUserRole() {
 
   if (!user) return null
 
+<<<<<<< HEAD
   // If you're storing role in auth metadata (recommended)
   return user.user_metadata?.role || null
+=======
+    // Fallback to metadata if profile is missing (e.g. trigger delay or error)
+    return profile?.role || user.user_metadata?.role || null
+>>>>>>> 7a9184b89247297dfaa85d714b8d01b040610386
 }

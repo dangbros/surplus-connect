@@ -56,12 +56,17 @@ export default function MapClient({ tasks }: MapClientProps) {
         }
     })
 
+    // Calculate bounds to auto-fit markers
+    const bounds = L.latLngBounds(mapTasks.map(t => [t.renderLat, t.renderLng]))
+
     return (
         <MapContainer
             center={[DEFAULT_CENTER.lat, DEFAULT_CENTER.lng]}
             zoom={12}
             scrollWheelZoom={false}
             style={{ height: '100%', width: '100%' }}
+            // @ts-ignore - bounds type is compatible but TS complains
+            bounds={bounds.isValid() ? bounds : undefined}
         >
             <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -76,9 +81,14 @@ export default function MapClient({ tasks }: MapClientProps) {
                     <Popup>
                         <div className="p-1 min-w-[200px]">
                             <h3 className="font-bold text-sm mb-1">{task.claim.donation.donor?.organization_name}</h3>
-                            <p className="text-xs text-gray-600 mb-2">
+                            <p className="text-xs text-gray-600 mb-1">
                                 {task.claim.donation.food_category} • {task.claim.donation.weight_kg} kg
                             </p>
+                            {task.claim.donation.pickup_address && (
+                                <p className="text-xs text-gray-500 mb-2 truncate max-w-[200px]" title={task.claim.donation.pickup_address}>
+                                    📍 {task.claim.donation.pickup_address}
+                                </p>
+                            )}
                             {task.isMock && (
                                 <p className="text-[10px] text-amber-600 italic mb-2">
                                     (Simulated Location)

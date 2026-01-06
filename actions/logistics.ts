@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
-export async function claimDonation(donationId: string) {
+export async function claimDonation(donationId: string, method: 'PICKUP' | 'VOLUNTEER' | 'DONOR_DELIVERY') {
     const supabase = await createClient()
 
     // 1. Check Auth
@@ -31,19 +31,22 @@ export async function claimDonation(donationId: string) {
                 donation_id: donationId,
                 ngo_id: user.id,
                 status: 'PENDING',
+                fulfillment_method: method
             })
             .select()
             .single()
 
         if (claimError) throw claimError
 
-        // 4. Create Task
-        const { error: taskError } = await supabase.from('tasks').insert({
-            claim_id: claim.id,
-            status: 'OPEN',
-        })
+        // 4. Create Task (ONLY if Volunteer is requested)
+        if (method === 'VOLUNTEER') {
+            const { error: taskError } = await supabase.from('tasks').insert({
+                claim_id: claim.id,
+                status: 'OPEN',
+            })
 
-        if (taskError) throw taskError
+            if (taskError) throw taskError
+        }
 
         revalidatePath('/dashboard/ngo')
         return { success: true }
