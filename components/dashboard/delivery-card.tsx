@@ -21,12 +21,9 @@ export function DeliveryCard({ task }: DeliveryCardProps) {
         setLoading(true)
         try {
             const result = await markAsDelivered(task.id)
-            if (result.error) {
-                toast.error(result.error)
-            } else {
-                toast.success('Delivery completed! Great job!')
-            }
-        } catch (error) {
+            if (result.error) toast.error(result.error)
+            else toast.success('Delivery completed! Great job!')
+        } catch {
             toast.error('Failed to update status')
         } finally {
             setLoading(false)
@@ -34,48 +31,49 @@ export function DeliveryCard({ task }: DeliveryCardProps) {
     }
 
     return (
-        <Card className="flex flex-col h-full overflow-hidden border-l-4 border-l-green-500">
+        <Card className="flex flex-col h-full overflow-hidden border-l-4 border-l-yellow-500 shadow-lg hover:shadow-xl transition-shadow">
             <CardHeader className="p-4 pb-2">
                 <div className="flex justify-between items-start">
-                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                    <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
                         Active Delivery
                     </Badge>
                     <span className="text-xs text-muted-foreground">
                         ID: {task.id.slice(0, 8)}
                     </span>
                 </div>
-                <CardTitle className="text-lg mt-2 flex items-center gap-2">
-                    <Package className="h-5 w-5 text-gray-500" />
+                <CardTitle className="text-lg mt-2 flex items-center gap-2 font-semibold">
+                    <Package className="h-5 w-5 text-yellow-600" />
                     {donation.food_category}
                 </CardTitle>
             </CardHeader>
+
             <CardContent className="flex-1 p-4 pt-2 space-y-4">
                 {donation.image_url && (
-                    <div className="relative h-32 w-full rounded-md overflow-hidden bg-gray-100">
+                    <div className="relative h-36 w-full rounded-lg overflow-hidden bg-gray-100 shadow-inner">
                         <Image
                             src={donation.image_url}
                             alt={donation.food_category}
                             fill
                             className="object-cover"
-                            unoptimized={true} // Handle potential invalid URLs gracefully
+                            unoptimized={true}
                         />
                     </div>
                 )}
 
                 <div className="space-y-3 text-sm">
                     {/* Pickup Section */}
-                    <div className="p-3 bg-gray-50 rounded-lg space-y-1">
-                        <p className="font-semibold text-gray-700 flex items-center">
-                            <MapPin className="h-4 w-4 mr-1 text-blue-500" /> Pickup (Donor)
+                    <div className="p-3 bg-gray-50 rounded-lg space-y-1 shadow-sm">
+                        <p className="font-semibold text-gray-700 flex items-center gap-1">
+                            <MapPin className="h-4 w-4 text-blue-500" /> Pickup (Donor)
                         </p>
                         <p className="pl-5 text-gray-900">{donation.donor?.organization_name}</p>
                         <p className="pl-5 text-gray-500 text-xs">{donation.pickup_instructions}</p>
                     </div>
 
                     {/* Dropoff Section */}
-                    <div className="p-3 bg-gray-50 rounded-lg space-y-1">
-                        <p className="font-semibold text-gray-700 flex items-center">
-                            <MapPin className="h-4 w-4 mr-1 text-green-500" /> Drop-off (NGO)
+                    <div className="p-3 bg-gray-50 rounded-lg space-y-1 shadow-sm">
+                        <p className="font-semibold text-gray-700 flex items-center gap-1">
+                            <MapPin className="h-4 w-4 text-green-500" /> Drop-off (NGO)
                         </p>
                         <p className="pl-5 text-gray-900">{ngo.organization_name}</p>
                     </div>
@@ -85,35 +83,30 @@ export function DeliveryCard({ task }: DeliveryCardProps) {
                     </div>
                 </div>
             </CardContent>
-            <CardFooter className="p-4 pt-0 gap-3">
+
+            <CardFooter className="p-4 pt-0 flex gap-3">
                 <Button
-                    className="flex-1"
+                    className="flex-1 flex items-center justify-center gap-2"
                     variant="outline"
                     asChild
                 >
-                    {/* Link to Google Maps Directions from Pickup (approx) to Dropoff (approx) 
-                        Note: We only have rough coords or addresses usually. 
-                        For now using search query.
-                    */}
                     <a
                         href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(ngo.organization_name)}`}
                         target="_blank"
                         rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2"
                     >
-                        <Navigation className="mr-2 h-4 w-4" />
+                        <Navigation className="h-4 w-4 text-yellow-600" />
                         Navigate
                     </a>
                 </Button>
+
                 <Button
-                    className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                    className="flex-1 flex items-center justify-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white"
                     onClick={handleComplete}
                     disabled={loading}
                 >
-                    {loading ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                        <CheckCircle className="mr-2 h-4 w-4" />
-                    )}
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
                     Complete
                 </Button>
             </CardFooter>
