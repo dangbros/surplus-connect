@@ -2,7 +2,9 @@ import { getOpenTasks } from '@/actions/volunteer'
 import { TaskCard } from '@/components/dashboard/task-card'
 import { VolunteerMap } from '@/components/dashboard/volunteer-map'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Info } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Info, PackageCheck } from 'lucide-react'
+import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,6 +18,14 @@ export default async function VolunteerDashboardPage() {
                 <p className="text-muted-foreground">
                     View and accept delivery tasks to help move food from donors to NGOs.
                 </p>
+                <div className="pt-2">
+                    <Button asChild variant="secondary" className="gap-2">
+                        <Link href="/dashboard/volunteer/deliveries">
+                            <PackageCheck className="h-4 w-4" />
+                            My Deliveries
+                        </Link>
+                    </Button>
+                </div>
             </div>
 
             {tasks.length > 0 && (

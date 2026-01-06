@@ -13,7 +13,7 @@ export function Header() {
 
     return (
         <header className="flex items-center justify-between px-6 py-4 border-b bg-white">
-            <Link href="/donate" className="text-xl font-bold">
+            <Link href="/" className="text-xl font-bold">
                 SurplusConnect
             </Link>
             <div>
