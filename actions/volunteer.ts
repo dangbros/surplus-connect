@@ -18,8 +18,10 @@ export interface VolunteerTask {
             weight_kg: number
             pickup_instructions: string
             image_url: string | null
+            image_url: string | null
             latitude?: number | null
             longitude?: number | null
+            pickup_address?: string | null
             donor?: {
                 organization_name: string
             }
@@ -45,7 +47,10 @@ export async function getOpenTasks(): Promise<VolunteerTask[]> {
             food_category,
             weight_kg,
             pickup_instructions,
+            pickup_address,
             image_url,
+            latitude,
+            longitude,
             donor_id
         )
       )
@@ -154,6 +159,9 @@ export async function getAssignedTasks(): Promise<VolunteerTask[]> {
             weight_kg,
             pickup_instructions,
             image_url,
+            latitude,
+            longitude,
+            pickup_address,
             donor_id
         )
       )

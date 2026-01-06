@@ -14,14 +14,18 @@ export default async function LandingPage() {
     let fullName = null
 
     if (user) {
+        // Use the centralized helper for robust role detection
+        const { getUserRole } = await import('@/actions/auth')
+        role = await getUserRole()
+
+        // Also get name from metadata if profile is missing
         const { data: profile } = await supabase
             .from('profiles')
-            .select('role, full_name')
+            .select('full_name')
             .eq('id', user.id)
             .single()
 
-        role = profile?.role
-        fullName = profile?.full_name || user.email?.split('@')[0]
+        fullName = profile?.full_name || user.user_metadata?.full_name || user.email?.split('@')[0]
     }
 
     if (user) {

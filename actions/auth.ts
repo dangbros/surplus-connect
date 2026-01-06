@@ -68,5 +68,6 @@ export async function getUserRole() {
         .eq('id', user.id)
         .single()
 
-    return profile?.role || null
+    // Fallback to metadata if profile is missing (e.g. trigger delay or error)
+    return profile?.role || user.user_metadata?.role || null
 }
