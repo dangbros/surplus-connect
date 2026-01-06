@@ -1,10 +1,159 @@
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
-import { ArrowRight, Camera, CheckCircle, Truck, Heart, Users, Utensils } from 'lucide-react'
+import { ArrowRight, Camera, CheckCircle, Truck, Heart, Users, Utensils, Leaf, Scale, Clock } from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
+import { ActionGrid } from '@/components/home/action-grid'
 
-export default function LandingPage() {
+export default async function LandingPage() {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    let role = null
+    let fullName = null
+
+    if (user) {
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('role, full_name')
+            .eq('id', user.id)
+            .single()
+
+        role = profile?.role
+        fullName = profile?.full_name || user.email?.split('@')[0]
+    }
+
+    if (user) {
+        // Logged In Dashboard View
+        return (
+            <div className="flex flex-col min-h-screen bg-gray-50/30">
+                {/* Dashboard Hero */}
+                <section className="bg-gradient-to-r from-green-50 to-emerald-100 border-b">
+                    <div className="container px-4 py-12 mx-auto">
+                        <div className="max-w-4xl">
+                            <Badge variant="outline" className="mb-4 bg-white/50 backdrop-blur-sm border-green-200 text-green-800">
+                                Welcome Back
+                            </Badge>
+                            <h1 className="text-3xl md:text-5xl font-bold tracking-tight text-gray-900 mb-4">
+                                Hi, <span className="text-green-700">{fullName}</span>! 👋
+                            </h1>
+                            <p className="text-gray-600 text-lg max-w-2xl">
+                                Your contributions are making a real difference. Check out your latest stats below.
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                <div className="container px-4 mx-auto py-8">
+
+                    {/* Impact Stats Grid (Demo Data) */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <Card className="border-none shadow-sm bg-white">
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">Total Food Saved</CardTitle>
+                                <Scale className="h-4 w-4 text-muted-foreground" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold">128 kg</div>
+                                <p className="text-xs text-muted-foreground">+12% from last month</p>
+                            </CardContent>
+                        </Card>
+                        <Card className="border-none shadow-sm bg-white">
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">People Fed</CardTitle>
+                                <Users className="h-4 w-4 text-muted-foreground" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold">320</div>
+                                <p className="text-xs text-muted-foreground">Est. meals provided</p>
+                            </CardContent>
+                        </Card>
+                        <Card className="border-none shadow-sm bg-white">
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">CO2 Offset</CardTitle>
+                                <Leaf className="h-4 w-4 text-muted-foreground" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold">45 kg</div>
+                                <p className="text-xs text-muted-foreground">Equivalent to 4 trees planted</p>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        {/* Left Column: Quick Actions */}
+                        <div className="lg:col-span-2">
+                            <ActionGrid role={role} userName={fullName} />
+                        </div>
+
+                        {/* Right Column: Recent Activity */}
+                        <div className="lg:col-span-1">
+                            <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
+                                Recent Activity
+                            </h2>
+                            <Card className="border shadow-sm">
+                                <CardHeader>
+                                    <CardTitle>Timeline</CardTitle>
+                                    <CardDescription>Your latest actions in the network.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="space-y-6">
+                                        <div className="flex items-start gap-4">
+                                            <div className="bg-green-100 p-2 rounded-full">
+                                                <CheckCircle className="h-4 w-4 text-green-600" />
+                                            </div>
+                                            <div>
+                                                <p className="font-medium text-sm">Donation Verified</p>
+                                                <p className="text-xs text-muted-foreground">Surplus Bread (5kg) was verified by AI.</p>
+                                                <div className="flex items-center gap-1 mt-1 text-xs text-gray-400">
+                                                    <Clock className="w-3 h-3" /> 2h ago
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start gap-4">
+                                            <div className="bg-blue-100 p-2 rounded-full">
+                                                <Truck className="h-4 w-4 text-blue-600" />
+                                            </div>
+                                            <div>
+                                                <p className="font-medium text-sm">Pickup Scheduled</p>
+                                                <p className="text-xs text-muted-foreground">Volunteer assigned to 'Vegetables Batch'.</p>
+                                                <div className="flex items-center gap-1 mt-1 text-xs text-gray-400">
+                                                    <Clock className="w-3 h-3" /> 5h ago
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start gap-4">
+                                            <div className="bg-orange-100 p-2 rounded-full">
+                                                <Heart className="h-4 w-4 text-orange-600" />
+                                            </div>
+                                            <div>
+                                                <p className="font-medium text-sm">Impact Milestone</p>
+                                                <p className="text-xs text-muted-foreground">You crossed 100kg total donations!</p>
+                                                <div className="flex items-center gap-1 mt-1 text-xs text-gray-400">
+                                                    <Clock className="w-3 h-3" /> 1d ago
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </div>
+
+                </div>
+
+                {/* Footer */}
+                <footer className="mt-auto py-8 bg-white border-t text-center">
+                    <p className="text-sm text-gray-500">
+                        SurplusConnect Dashboard • {new Date().getFullYear()}
+                    </p>
+                </footer>
+            </div>
+        )
+    }
+
+    // Public Landing Page View
     return (
         <div className="flex flex-col min-h-screen">
             {/* Hero Section */}
