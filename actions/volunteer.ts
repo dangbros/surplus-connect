@@ -18,7 +18,6 @@ export interface VolunteerTask {
             weight_kg: number
             pickup_instructions: string
             image_url: string | null
-            image_url: string | null
             latitude?: number | null
             longitude?: number | null
             pickup_address?: string | null
@@ -224,26 +223,76 @@ export async function getAssignedTasks(): Promise<VolunteerTask[]> {
     return formattedTasks
 }
 
-export async function markAsDelivered(taskId: string) {
+export async function completeDelivery(taskId: string) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) return { error: 'Unauthorized' }
 
-    const { error } = await supabase
+    // 1. Verify task ownership and status
+    const { data: task, error: fetchError } = await supabase
         .from('tasks')
-        .update({
-            status: 'COMPLETED'
-        })
+        .select('*')
         .eq('id', taskId)
-        .eq('volunteer_id', user.id) // Ensure only the assigned volunteer can complete it
+        .eq('volunteer_id', user.id)
         .eq('status', 'ASSIGNED')
+        .single()
 
-    if (error) {
-        console.error('Error completing task:', error)
+    if (fetchError || !task) {
+        return { error: 'Task not found or not assigned to you' }
+    }
+
+    // 2. Mark task as COMPLETED
+    const { error: updateError } = await supabase
+        .from('tasks')
+        .update({ status: 'COMPLETED' })
+        .eq('id', taskId)
+
+    if (updateError) {
+        console.error('Error completing task:', updateError)
         return { error: 'Failed to complete task' }
     }
 
+    // 3. Award Points (50 pts) and Increment Lifetime Deliveries
+    // Note: In a real app, this should be an RPC or transaction for safety.
+    // For now, we fetch current, then increment.
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('points, lifetime_deliveries')
+        .eq('id', user.id)
+        .single()
+
+    const currentPoints = profile?.points || 0
+    const currentDeliveries = profile?.lifetime_deliveries || 0
+
+    const { error: rewardError } = await supabase
+        .from('profiles')
+        .update({
+            points: currentPoints + 50,
+            lifetime_deliveries: currentDeliveries + 1
+        })
+        .eq('id', user.id)
+
+    if (rewardError) {
+        // Log it but don't fail the user flow completely, or retry
+        console.error('Error awarding points:', rewardError)
+    }
+
+    revalidatePath('/dashboard/volunteer')
     revalidatePath('/dashboard/volunteer/deliveries')
-    return { success: true }
+    return { success: true, pointsEarned: 50 }
+}
+
+export async function getLeaderboard() {
+    const supabase = await createClient()
+
+    const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, points, lifetime_deliveries')
+        .eq('role', 'VOLUNTEER')
+        .order('points', { ascending: false })
+        .limit(5)
+
+    if (error) return []
+    return data
 }
