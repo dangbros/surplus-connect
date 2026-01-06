@@ -14,6 +14,32 @@ const donationSchema = z.object({
     image: z.instanceof(File).refine((file) => file.size > 0, 'Image is required'),
 })
 
+// Helper to geocode address
+async function getCoordinates(address: string) {
+    try {
+        const response = await fetch(
+            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+                address
+            )}`,
+            {
+                headers: {
+                    'User-Agent': 'SurplusConnect/1.0', // Required by Nominatim
+                },
+            }
+        )
+        const data = await response.json()
+        if (data && data.length > 0) {
+            return {
+                lat: parseFloat(data[0].lat),
+                lon: parseFloat(data[0].lon),
+            }
+        }
+    } catch (error) {
+        console.error('Geocoding error:', error)
+    }
+    return null
+}
+
 export async function submitDonation(prevState: any, formData: FormData) {
     const supabase = await createClient()
 
@@ -79,6 +105,25 @@ export async function submitDonation(prevState: any, formData: FormData) {
         const expiryDate = new Date()
         expiryDate.setHours(expiryDate.getHours() + expiry_hours)
 
+        // Geocode Address or Use Provided Coordinates
+        let latitude = null
+        let longitude = null
+
+        const formLat = formData.get('latitude')
+        const formLng = formData.get('longitude')
+
+        if (formLat && formLng) {
+            latitude = parseFloat(formLat.toString())
+            longitude = parseFloat(formLng.toString())
+        } else if (pickup_address) {
+            // Fallback to server-side geocoding
+            const coords = await getCoordinates(pickup_address)
+            if (coords) {
+                latitude = coords.lat
+                longitude = coords.lon
+            }
+        }
+
         // Insert into database
         const { error: insertError } = await supabase.from('donations').insert({
             donor_id: user.id,
@@ -88,9 +133,12 @@ export async function submitDonation(prevState: any, formData: FormData) {
             pickup_address, // Save new field
             freshness_score, // Save new field
             ai_notes, // Save new field
+            latitude, // Save geocoded lat
+            longitude, // Save geocoded lon
             expiry_at: expiryDate.toISOString(),
             image_url: publicUrl,
             status: 'AVAILABLE',
+            is_verified: !!freshness_score, // Mark verified if score exists
         })
 
         if (insertError) {
